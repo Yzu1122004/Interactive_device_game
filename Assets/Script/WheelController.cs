@@ -13,10 +13,10 @@ public class WheelController : MonoBehaviour
     public WheelCollider wheel_right_col;
 
     [Header("動力參數")]
-    public float maxTorque = 150f;   
-    public float turnTorque = 100f;  
-    public float brakeForce = 500f;
-    public float maxSpeed = 30f;
+    public float maxTorque = 0f;   
+    public float turnTorque = 0f;  
+    public float brakeForce = 0f;
+    public float maxSpeed = 0f;
 
     [Header("按鍵設定")]
     public KeyCode forwardKey = KeyCode.W;
@@ -25,8 +25,21 @@ public class WheelController : MonoBehaviour
     public KeyCode rightKey = KeyCode.D;
     public KeyCode brakeKey = KeyCode.Space;
 
+    [Header("特殊區域設定")]
+    public float slopMaxSpeed = 10f;
+    private float originalMaxSpeed;
+    public ArduinoBasic arduino;
+
     private float currentV = 0f;
     private float currentH = 0f;
+
+    void Start()
+    {
+        originalMaxSpeed = maxSpeed;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        rb.centerOfMass = new Vector3(0, -0.2f, 0);
+    }
 
     void Update()
     {
@@ -58,6 +71,8 @@ public class WheelController : MonoBehaviour
 
     void ApplyMovement()
     {
+        float currentSpeed = GetComponent<Rigidbody>().velocity.magnitude;
+
         if (Input.GetKey(brakeKey))
         {
             ApplyBrake(brakeForce);
@@ -67,18 +82,27 @@ public class WheelController : MonoBehaviour
         {
             ApplyBrake(0);
         }
-        
+
         float move = currentV * maxTorque;
         float turn = currentH * turnTorque;
 
         float leftMotor = move + turn;
         float rightMotor = move - turn;
 
-        wheel_left_col.motorTorque = leftMotor;
-        wheel_right_col.motorTorque = rightMotor;
 
-        if (Mathf.Abs(wheel_left_col.rpm) > 500) wheel_left_col.motorTorque = 0;
-        if (Mathf.Abs(wheel_right_col.rpm) > 500) wheel_right_col.motorTorque = 0;
+        if (currentSpeed > maxSpeed)
+        {
+            wheel_left_col.motorTorque = 0;
+            wheel_right_col.motorTorque = 0; 
+        }
+        else
+        {
+            wheel_left_col.motorTorque = move + turn;
+            wheel_right_col.motorTorque = move - turn; 
+        }
+
+        if (Mathf.Abs(wheel_left_col.rpm) > 800) wheel_left_col.motorTorque = 0;
+        if (Mathf.Abs(wheel_right_col.rpm) > 800) wheel_right_col.motorTorque = 0;
     }
 
     void ApplyBrake(float force)
@@ -100,5 +124,29 @@ public class WheelController : MonoBehaviour
         col.GetWorldPose(out pos, out rot);
         trans.position = pos;
         trans.rotation = rot;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("slope"))
+        {
+            maxSpeed = slopMaxSpeed;
+            if (arduino != null)
+            {
+                arduino.ArduinoWrite("B_ON"); 
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("slope"))
+        {
+            maxSpeed = originalMaxSpeed;
+            if (arduino != null)
+            {
+                arduino.ArduinoWrite("B_OFF");
+            }
+        }
     }
 }
