@@ -61795,7 +61795,7 @@ MonoBehaviour:
   maxHealth: 100
   playerHealth: 100
   isGameOver: 0
-  timeRemaining: 120
+  timeRemaining: 1500
   isTimerRunning: 0
   healthBarFill: {fileID: 858045109}
   healthText: {fileID: 1865438094}
@@ -313835,7 +313835,7 @@ GameObject:
   - component: {fileID: 3800276761992513284}
   m_Layer: 0
   m_Name: NoodleStall
-  m_TagString: Untagged
+  m_TagString: Shop
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -442344,7 +442344,7 @@ MonoBehaviour:
   wheel_left_col: {fileID: 1718510489}
   wheel_right_col: {fileID: 240676375}
   maxTorque: 40
-  turnTorque: 20
+  turnTorque: 30
   brakeForce: 50
   maxSpeed: 20
   forwardKey: 119
