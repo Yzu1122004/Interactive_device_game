@@ -15,6 +15,7 @@ TagManager:
   - End
   - slope
   - break
+  - Tire
   layers:
   - Default
   - TransparentFX
