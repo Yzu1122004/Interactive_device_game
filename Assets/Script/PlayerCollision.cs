@@ -27,8 +27,14 @@ public class PlayerCollision : MonoBehaviour
     private MeshRenderer[] renderers;
     private Dictionary<string, float> damageValues = new Dictionary<string, float>()
     {
-        { "Truck", 10f }, { "Motor", 10f }, { "Tree", 10f }, { "Plant", 10f },
-        { "TrafficCone", 10f }, { "TransformerBox", 10f }, { "Shop", 10f }, { "Otheritem", 10f }
+        { "Truck", 20f },
+        { "Motor", 10f }, 
+        { "Tree", 10f }, 
+        { "Plant", 5f },
+        { "TrafficCone", 5f },
+        { "TransformerBox", 10f }, 
+        { "Shop", 10f }, 
+        { "Otheritem", 10f }
     };
 
     void Start()
