@@ -2772,12 +2772,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 100
   playerHealth: 100
+  maxEnergy: 100
+  playerEnergy: 100
   isGameOver: 0
   timeRemaining: 1500
   isTimerRunning: 0
   healthBarFill: {fileID: 858045109}
   healthText: {fileID: 0}
   timerText: {fileID: 2008401147}
+  energyBarFill: {fileID: 0}
+  energyText: {fileID: 0}
   resultUI: {fileID: 364439320}
   resultMessageText: {fileID: 517485883}
 --- !u!1 &449206458 stripped
@@ -4542,6 +4546,81 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 433155154733764189, guid: 276156af5e9004140b6f4acca809c62a, type: 3}
   m_PrefabInstance: {fileID: 1993733357097670825}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &786438961
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 786438962}
+  - component: {fileID: 786438964}
+  - component: {fileID: 786438963}
+  m_Layer: 5
+  m_Name: Image
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &786438962
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 786438961}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 2.6617, y: 2.6617, z: 2.6617}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1434270597}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -10.9292, y: 17}
+  m_SizeDelta: {x: 115.3388, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &786438963
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 786438961}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.31132078, g: 0.3015308, b: 0.3015308, a: 0.6156863}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &786438964
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 786438961}
+  m_CullTransparentMesh: 1
 --- !u!1 &787870736
 GameObject:
   m_ObjectHideFlags: 0
@@ -6529,6 +6608,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4366ca479d427ac4ebeff4f7c0d50a2c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  qrMappingList:
+  - qrType: 1
+    prefab: {fileID: 8270531739372919419, guid: 428e0d08cb9117b4fa6be0b7e970c27b, type: 3}
+  - qrType: 2
+    prefab: {fileID: 4215559332862794138, guid: 8ea5cc551a8b8fb4ab8b2dfdb3a602d4, type: 3}
+  - qrType: 3
+    prefab: {fileID: 8301692144356046857, guid: cf456d53cabe2ad4280996cb74dc0997, type: 3}
+  - qrType: 4
+    prefab: {fileID: 7065689371796031653, guid: b6e7ff9b7c808d346aeaeb8de8bc48a0, type: 3}
+  - qrType: 5
+    prefab: {fileID: 4665721079251565920, guid: 7ffc54afcd8246d409254b1e7f2066fa, type: 3}
+  - qrType: 6
+    prefab: {fileID: 2792401344792393144, guid: b0253d6311cca9d49923a121ee88a0b2, type: 3}
 --- !u!4 &1233557406
 Transform:
   m_ObjectHideFlags: 0
@@ -7481,6 +7573,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 786438962}
   - {fileID: 58591735}
   m_Father: {fileID: 1963978758}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -32975,6 +33068,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   invincibilityDuration: 1
   recoilForce: 10
+  isSkillActive: 0
+  skillCostPerSec: 10
+  skillRegenPerSec: 3
+  pushRange: 3
+  pushRadius: 1.5
+  pushForce: 15
+  skillParticle: {fileID: 0}
 --- !u!65 &7257531185829517220
 BoxCollider:
   m_ObjectHideFlags: 0
