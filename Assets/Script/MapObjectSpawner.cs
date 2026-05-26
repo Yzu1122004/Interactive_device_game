@@ -15,9 +15,12 @@ public class MapObjectSpawner : MonoBehaviour
     private Queue<string> dataQueue = new Queue<string>();
     private readonly object queueLock = new object();
 
+    // Khai báo biến đếm số thứ tự quét
+    private int scanCounter = 0;
+
     void Start()
     {
-        // Start the background network thread to listen for data
+        // Khởi động luồng mạng nền để lắng nghe dữ liệu
         receiveThread = new Thread(new ThreadStart(ReceiveData));
         receiveThread.IsBackground = true;
         receiveThread.Start();
@@ -26,13 +29,20 @@ public class MapObjectSpawner : MonoBehaviour
 
     void Update()
     {
-        // Process all received network data packages on the main thread
+        // Xử lý tất cả các gói dữ liệu nhận được trên Main Thread của Unity
         lock (queueLock)
         {
-            while (dataQueue.Count > 0)
+            if (dataQueue.Count > 0)
             {
-                string data = dataQueue.Dequeue();
-                ProcessData(data);
+                // Reset bộ đếm về 0 trước khi xử lý loạt gói tin của đợt quét này
+                scanCounter = 0;
+
+                while (dataQueue.Count > 0)
+                {
+                    scanCounter++; // Tự tăng ID lên thành 1, 2, 3, 4, 5, 6...
+                    string data = dataQueue.Dequeue();
+                    ProcessData(data, scanCounter);
+                }
             }
         }
     }
@@ -47,8 +57,8 @@ public class MapObjectSpawner : MonoBehaviour
                 IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
                 byte[] dataByte = udpClient.Receive(ref anyIP);
                 string message = Encoding.UTF8.GetString(dataByte);
-                
-                // Connection confirmation: Prints out whenever any data is received
+
+                // Nhật ký xác nhận kết nối mạng
                 Debug.LogWarning("🌐 NETWORK CLEAR! Unity received string: " + message);
 
                 lock (queueLock)
@@ -63,18 +73,20 @@ public class MapObjectSpawner : MonoBehaviour
         }
     }
 
-    private void ProcessData(string data)
+    // Đã thêm tham số 'autoId' vào hàm xử lý dữ liệu
+    private void ProcessData(string data, int autoId)
     {
         try
         {
             string[] splitData = data.Split(',');
             if (splitData.Length != 3) return;
 
-            string type = splitData[0].Trim(); // Remove any accidental leading/trailing whitespaces
+            string type = splitData[0].Trim(); // Loại bỏ khoảng trắng thừa nếu có
             float x = float.Parse(splitData[1]);
             float z = float.Parse(splitData[2]);
 
-            SpawnObject(type, x, z);
+            // Chuyển tiếp ID tự động xuống hàm sinh vật thể
+            SpawnObjectWithAutoID(type, x, z, autoId);
         }
         catch (Exception e)
         {
@@ -82,29 +94,45 @@ public class MapObjectSpawner : MonoBehaviour
         }
     }
 
-    private void SpawnObject(string type, float x, float z)
+    private void SpawnObjectWithAutoID(string type, float x, float z, int autoId)
     {
         Vector3 targetPosition = new Vector3(x, 0f, z);
-        
-        // Try to load the Prefab from the Resources folder
-        GameObject prefab = Resources.Load<GameObject>(type);
 
-        if (prefab != null)
+        // Tạo tên duy nhất kết hợp Loại và ID tự sinh để tránh trùng lặp
+        // Ví dụ: QR_Object_1_ID_1, QR_Object_1_ID_2
+        string uniqueName = $"QR_Object_{type}_ID_{autoId}";
+
+        // TÌM KIẾM xem trên Scene đã từng tạo vật thể có tên định danh này chưa
+        GameObject existingObj = GameObject.Find(uniqueName);
+
+        if (existingObj != null)
         {
-            GameObject newObj = Instantiate(prefab, targetPosition, Quaternion.identity);
-            newObj.name = "QR_Object_" + type;
-            Debug.Log($"SUCCESS: Spawned object: {type} at position ({x}, {z})");
+            // Nếu ĐÃ TỒN TẠI, chỉ cần cập nhật tọa độ mới cho nó
+            existingObj.transform.position = targetPosition;
+            Debug.Log($"[UPDATE] Moved existing object: {uniqueName} to position ({x}, {z})");
         }
         else
         {
-            // Error log triggered if data is received but the file name does not match
-            Debug.LogError($"❌ FILE ERROR: Unity received command to spawn '{type}', but no Prefab named '{type}' was found in Assets/Resources folder!");
+            // Nếu CHƯA TỒN TẠI, tiến hành tải Prefab từ Resources lên và sinh mới
+            GameObject prefab = Resources.Load<GameObject>(type);
+
+            if (prefab != null)
+            {
+                GameObject newObj = Instantiate(prefab, targetPosition, Quaternion.identity);
+                newObj.name = uniqueName; // Gán tên duy nhất cho bản sao vừa tạo
+                Debug.Log($"[SUCCESS] Spawned NEW object: {uniqueName} at position ({x}, {z})");
+            }
+            else
+            {
+                // Ghi lỗi nếu nhận được loại mà trong folder Assets/Resources không có file trùng tên
+                Debug.LogError($"❌ FILE ERROR: Unity received command to spawn '{type}', but no Prefab named '{type}' was found in Assets/Resources folder!");
+            }
         }
     }
 
     private void OnApplicationQuit()
     {
-        // Clean up the thread and socket connections when closing the application
+        // Giải phóng tài nguyên và đóng luồng khi tắt ứng dụng
         if (receiveThread != null) receiveThread.Abort();
         if (udpClient != null) udpClient.Close();
     }
