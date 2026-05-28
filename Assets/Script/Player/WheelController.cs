@@ -13,8 +13,8 @@ public class WheelController : MonoBehaviour
     public WheelCollider wheel_right_col;
 
     [Header("動力參數")]
-    public float maxTorque = 0f;   
-    public float turnTorque = 0f;  
+    public float maxTorque = 0f;
+    public float turnTorque = 0f;
     public float brakeForce = 0f;
     public float maxSpeed = 0f;
 
@@ -30,25 +30,66 @@ public class WheelController : MonoBehaviour
     private float originalMaxSpeed;
     public ArduinoBasic arduino;
 
+    [Header("輪椅移動音效設定")]
+    [Tooltip("拖入輪椅移動持續音效的 Audio Source")]
+    public AudioSource movementAudioSource;
+    [Tooltip("音效淡入淡出的平滑速度")]
+    public float soundFadeSpeed = 5f;
+
+    private float maxMovementVolume = 1.0f;
     private float currentV = 0f;
     private float currentH = 0f;
+    private Rigidbody rb;
 
     void Start()
     {
         originalMaxSpeed = maxSpeed;
-
-        Rigidbody rb = GetComponent<Rigidbody>();
+        rb = GetComponent<Rigidbody>();
         rb.centerOfMass = new Vector3(0, -0.2f, 0);
+
+        // 【音效初始化防呆】
+        if (movementAudioSource == null) movementAudioSource = GetComponent<AudioSource>();
+        if (movementAudioSource != null)
+        {
+            maxMovementVolume = movementAudioSource.volume;
+            if (!movementAudioSource.isPlaying) movementAudioSource.Play();
+        }
     }
 
     void Update()
     {
-        
         HandleInput();
 
-        
         UpdateWheelPosition(wheel_left_col, wheel_left);
         UpdateWheelPosition(wheel_right_col, wheel_right);
+
+        // 【核心控制】依據輪椅實際移動速度控制音效
+        HandleMovementSound();
+    }
+
+    // 動態控制輪椅移動音效
+    private void HandleMovementSound()
+    {
+        if (movementAudioSource == null || rb == null) return;
+
+        // 使用 Rigidbody 的實體移動速度判定
+        float currentSpeed = rb.velocity.magnitude;
+
+        if (currentSpeed < 1f)
+        {
+            // 停下時，音量平滑歸零
+            movementAudioSource.volume = Mathf.MoveTowards(movementAudioSource.volume, 0f, soundFadeSpeed * Time.deltaTime);
+            if (movementAudioSource.volume <= 0f && movementAudioSource.isPlaying)
+            {
+                movementAudioSource.Pause();
+            }
+        }
+        else
+        {
+            // 移動時，恢復播放與音量
+            if (!movementAudioSource.isPlaying) movementAudioSource.UnPause();
+            movementAudioSource.volume = Mathf.MoveTowards(movementAudioSource.volume, maxMovementVolume, soundFadeSpeed * Time.deltaTime);
+        }
     }
 
     void FixedUpdate()
@@ -58,12 +99,10 @@ public class WheelController : MonoBehaviour
 
     void HandleInput()
     {
-        // 垂直輸入 (前後)
         currentV = 0;
         if (Input.GetKey(forwardKey)) currentV = 1;
         if (Input.GetKey(backwardKey)) currentV = -1;
 
-        // 水平輸入 (左右)
         currentH = 0;
         if (Input.GetKey(leftKey)) currentH = -1;
         if (Input.GetKey(rightKey)) currentH = 1;
@@ -71,7 +110,7 @@ public class WheelController : MonoBehaviour
 
     void ApplyMovement()
     {
-        float currentSpeed = GetComponent<Rigidbody>().velocity.magnitude;
+        float currentSpeed = rb.velocity.magnitude;
 
         if (Input.GetKey(brakeKey))
         {
@@ -86,19 +125,15 @@ public class WheelController : MonoBehaviour
         float move = currentV * maxTorque;
         float turn = currentH * turnTorque;
 
-        float leftMotor = move + turn;
-        float rightMotor = move - turn;
-
-
         if (currentSpeed > maxSpeed)
         {
             wheel_left_col.motorTorque = 0;
-            wheel_right_col.motorTorque = 0; 
+            wheel_right_col.motorTorque = 0;
         }
         else
         {
             wheel_left_col.motorTorque = move + turn;
-            wheel_right_col.motorTorque = move - turn; 
+            wheel_right_col.motorTorque = move - turn;
         }
 
         if (Mathf.Abs(wheel_left_col.rpm) > 800) wheel_left_col.motorTorque = 0;
@@ -133,7 +168,7 @@ public class WheelController : MonoBehaviour
             maxSpeed = slopMaxSpeed;
             if (arduino != null)
             {
-                arduino.ArduinoWrite("B_ON"); 
+                arduino.ArduinoWrite("B_ON");
             }
         }
     }

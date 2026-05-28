@@ -401,7 +401,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.29
   m_Height: 1.7879442
@@ -432,7 +432,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 80
+  m_Constraints: 126
   m_CollisionDetection: 0
 --- !u!1 &1825534810004576512
 GameObject:
@@ -7019,8 +7019,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5624011447573299540}
-  - component: {fileID: 4045003911356986861}
   - component: {fileID: 7628496847450045945}
+  - component: {fileID: 4045003911356986861}
+  - component: {fileID: 1382315120669329218}
+  - component: {fileID: 5000561345291983248}
   m_Layer: 0
   m_Name: IronBucket
   m_TagString: Iron
@@ -7048,27 +7050,6 @@ Transform:
   - {fileID: 5519376896921970451}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &4045003911356986861
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6846809707067025760}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.66563225, y: 0.63963187, z: 0.58063316}
-  m_Center: {x: 0.09392357, y: 0.32527876, z: -0.016112328}
 --- !u!54 &7628496847450045945
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -7096,6 +7077,61 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!65 &4045003911356986861
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6846809707067025760}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.66563225, y: 0.63963187, z: 0.58063316}
+  m_Center: {x: 0.09392357, y: 0.32527876, z: -0.016112328}
+--- !u!135 &1382315120669329218
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6846809707067025760}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 1.48
+  m_Center: {x: 0, y: 0.85, z: 0.09}
+--- !u!114 &5000561345291983248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6846809707067025760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16efaddc27df013499acda27c314e164, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  damagePerSecond: 2
 --- !u!1 &6879603216743861295
 GameObject:
   m_ObjectHideFlags: 0
