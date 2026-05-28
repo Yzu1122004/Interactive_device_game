@@ -7220,18 +7220,30 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   qrMappingList:
-  - qrType: 1
+  - qrText: 1
     prefab: {fileID: 4351741182347246822, guid: ab4a5b51e1bdb3748811db470c5dae3f, type: 3}
-  - qrType: 2
+  - qrText: 2
     prefab: {fileID: 8484987593247328278, guid: 0851f85dff2b9694aa4cb7e294ba8ff0, type: 3}
-  - qrType: 3
+  - qrText: 3
     prefab: {fileID: 8269415774365691703, guid: 4aff012088bf2354c843ef473ec376b9, type: 3}
-  - qrType: 4
+  - qrText: 4
     prefab: {fileID: 7274050567735778904, guid: b3bc253bed9285e478dc8696f505be4a, type: 3}
-  - qrType: 5
+  - qrText: 5
     prefab: {fileID: 6846809707067025760, guid: ed8f1fdf81601254f9b73b774fdbf854, type: 3}
-  - qrType: 6
+  - qrText: 6
     prefab: {fileID: 1868051394869550206, guid: c826471c6ea57e84facf92ac924b86f6, type: 3}
+  zoneAnchors:
+  - {fileID: 1375065072}
+  - {fileID: 558876635}
+  - {fileID: 2107705005}
+  - {fileID: 740403527}
+  - {fileID: 396159687}
+  - {fileID: 1087609903}
+  - {fileID: 466174726}
+  - {fileID: 1681651621}
+  - {fileID: 363349525}
+  - {fileID: 611313104}
+  - {fileID: 1927396740}
 --- !u!4 &1859210111
 Transform:
   m_ObjectHideFlags: 0
