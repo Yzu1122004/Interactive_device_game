@@ -1,65 +1,81 @@
 using UnityEngine;
 
+[RequireComponent(typeof(BoxCollider))] // Guarantees that a Collider always exists to prevent NullReference errors
 public class IncidentZone : MonoBehaviour
 {
     public enum IncidentType
     {
-        PedestrianBlocker, // 1. 擋路的行人
-        BrakingCarHorn,    // 2. 停滯車子按喇叭
-        ExhaustCar,        // 3. 廢氣排放車
-        FallingFlowerPot   // 4. 倒下的花盆
+        PedestrianBlocker, // 1. Pedestrian blocking the path
+        BrakingCarHorn,    // 2. Stalled car honking its horn
+        ExhaustCar,        // 3. Car emitting exhaust gas
+        FallingFlowerPot   // 4. Falling flower pot group
     }
 
-    [Header("事件設定")]
-    [Tooltip("這個區域固定執行的事件類型")]
+    [Header("--- GENERAL CONFIGURATION ---")]
+    [Tooltip("The specific incident type assigned to this trigger zone.")]
     public IncidentType assignedIncident;
 
-    [Header("1. 擋路行人設定")]
+    [Header("1. PEDESTRIAN BLOCKER CONFIG")]
     public GameObject blockerPedestrianPrefab;
     public Transform pedestrianSpawnPoint;
 
-    [Header("2. 停滯喇叭車設定")]
+    [Header("2. BRAKING CAR HORN CONFIG")]
     public GameObject hornCarPrefab;
     public Transform carSpawnPoint;
 
-    [Header("3. 廢氣車設定")]
+    [Header("3. EXHAUST CAR CONFIG")]
     public GameObject exhaustCarPrefab;
     public Transform exhaustCarSpawnPoint;
 
-    [Header("4. 倒下花盆設定")]
-    [Tooltip("【模式 A】如果整組花盆是原本就擺在場景上的，請把它的最外層父物件拖到這裡")]
+    [Header("4. FALLING FLOWER POT CONFIG")]
+    [Tooltip("[Mode A] If the pot group already exists in the scene hierarchy, drag its root Rigidbody here.")]
     public Rigidbody targetFlowerPotGroup;
 
-    [Tooltip("【模式 B】如果你希望踩到格子才把『多花盆預製物』生成出來倒下，請把 Prefab 拖到這裡")]
+    [Tooltip("[Mode B] If you want to dynamically spawn a preset group when triggered, drag the Prefab here.")]
     public GameObject flowerPotGroupPrefab;
-    [Tooltip("配合模式 B 的生成位置（留空則預設在觸發區中心）")]
+    [Tooltip("Spawn reference transform for Mode B (Leaves blank to default to trigger center).")]
     public Transform flowerPotSpawnPoint;
 
-    [Tooltip("讓花盆倒下的推力大小")]
+    [Tooltip("The instantaneous impact force applied to tip the pots over.")]
     public float pushForce = 8f;
 
     private bool isActivatedByManager = false;
     private bool hasTriggered = false;
+    private Collider zoneCollider;
+
+    private void Awake()
+    {
+        // Cache the collider reference safely on startup
+        zoneCollider = GetComponent<Collider>();
+        // Ensure the collider is configured as a trigger volume
+        zoneCollider.isTrigger = true; 
+    }
 
     public void SetActivate(bool state)
     {
         isActivatedByManager = state;
         hasTriggered = false;
-        GetComponent<Collider>().enabled = true;
+        if (zoneCollider != null)
+        {
+            zoneCollider.enabled = true;
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
+        // Check activation state and filter explicitly by Player tag
         if (isActivatedByManager && !hasTriggered && other.CompareTag("Player"))
         {
             hasTriggered = true;
+            // Disable collider immediately after trigger to prevent double-execution artifacts
+            zoneCollider.enabled = false; 
             ExecuteIncident();
         }
     }
 
     private void ExecuteIncident()
     {
-        Debug.Log($"【干擾事件】玩家進入區域，觸發：{assignedIncident}");
+        Debug.Log($"<color=cyan>[Incident System]</color> Player entered zone. Triggering: {assignedIncident}");
 
         switch (assignedIncident)
         {
@@ -102,50 +118,56 @@ public class IncidentZone : MonoBehaviour
         }
     }
 
-    // --- 4. 倒下花盆（多花盆一體化處理） ---
     private void TriggerFallingFlowerPot()
     {
-        Rigidbody potRbToPush = null;
+        GameObject activePotGroupInstance = null;
 
-        // 優先檢查模式 B：動態生成
+        // Mode B: Dynamic Spawning instantiation
         if (flowerPotGroupPrefab != null)
         {
             Vector3 spawnPos = flowerPotSpawnPoint != null ? flowerPotSpawnPoint.position : transform.position;
             Quaternion spawnRot = flowerPotSpawnPoint != null ? flowerPotSpawnPoint.rotation : transform.rotation;
-
-            GameObject spawnedPot = Instantiate(flowerPotGroupPrefab, spawnPos, spawnRot);
-            potRbToPush = spawnedPot.GetComponent<Rigidbody>();
-
-            if (potRbToPush == null)
-            {
-                Debug.LogError($"【錯誤】生成的花盆 Prefab 『最外層父物件』身上沒有掛 Rigidbody！");
-                return;
-            }
+            activePotGroupInstance = Instantiate(flowerPotGroupPrefab, spawnPos, spawnRot);
         }
-        // 否則使用模式 A：場景上原本擺好的現成花盆
+        // Mode A: Fallback to pre-existing scene object reference
         else if (targetFlowerPotGroup != null)
         {
-            potRbToPush = targetFlowerPotGroup;
+            activePotGroupInstance = targetFlowerPotGroup.gameObject;
         }
 
-        // 開始執行推倒物理邏輯
-        if (potRbToPush != null)
+        if (activePotGroupInstance != null)
         {
-            // 1. 喚醒物理：解除 Kinematic 讓重力恢復運作
-            potRbToPush.isKinematic = false;
+            // ADVANCED PHYSICS FIX: Query all child rigidbodies inside the group setup
+            Rigidbody[] childPots = activePotGroupInstance.GetComponentsInChildren<Rigidbody>();
 
-            // 2. 核心修正：計算斜下方的物理推力方向（使用大寫 Vector3.down 修正先前 transform.down 的報錯）
+            if (childPots.Length == 0)
+            {
+                Debug.LogError(" [Physics Error] No Rigidbody found on the Flower Pot Group or its children!");
+                return;
+            }
+
+            // Calculate vectorized direction downward and outward diagonally
             Vector3 pushDirection = (transform.right + Vector3.down * 0.3f).normalized;
 
-            // 3. 一巴掌推在最外層父物件的物理身體上，裡面的所有子花盆就會跟著完美的一起滾動倒下！
-            potRbToPush.AddForce(pushDirection * pushForce, ForceMode.Impulse);
+            foreach (Rigidbody rb in childPots)
+            {
+                // Wake up rigidbodies from static placement parameters
+                rb.isKinematic = false;
+                
+                // If it's a child element, un-parent it so they roll and spill dynamically on impact!
+                if (rb.gameObject != activePotGroupInstance)
+                {
+                    rb.transform.SetParent(null); 
+                }
 
-            // 額外加點微幅扭矩旋轉，讓花盆群組倒得更自然、有滾動感
-            potRbToPush.AddTorque(transform.forward * pushForce * 0.5f, ForceMode.Impulse);
+                // Apply direct physical shock forces
+                rb.AddForce(pushDirection * pushForce, ForceMode.Impulse);
+                rb.AddTorque(transform.forward * pushForce * 0.5f, ForceMode.Impulse);
+            }
         }
         else
         {
-            Debug.LogWarning("【警告】未綁定任何場景花盆物件 (Target Flower Pot Group) 或花盆 Prefab！");
+            Debug.LogWarning(" [Configuration Alert] No scene reference target or prefab bound to Flower Pot setup!");
         }
     }
 

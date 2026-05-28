@@ -138,7 +138,8 @@ public class PedestrianAI : MonoBehaviour
                 isWaitingForLight = true;
                 currentSpeed = 0f; // 速度歸零
                 SetWalkingAnimation(false); // 播 Idle 動畫
-                Debug.Log($"{gameObject.name} 踩到等待點，開始等紅燈。");
+                // Debug.Log($"{gameObject.name} 踩到等待點，開始等紅燈。");
+                Debug.Log(gameObject.name + " reached the waiting point and is waiting for the red light.");
                 return; // 卡在當前 index，直到綠燈亮起
             }
 

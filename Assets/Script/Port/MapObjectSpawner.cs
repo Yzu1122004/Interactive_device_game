@@ -21,8 +21,6 @@ public class MapObjectSpawner : MonoBehaviour
         public GameObject prefab;
     }
 
-    // Class structure so Unity can decode JSON strings sent from Python
-    // Expected format: {"zones": ["Tree", "None", "House", ...]}
     [Serializable]
     public class PythonScanData
     {
@@ -94,7 +92,7 @@ public class MapObjectSpawner : MonoBehaviour
                 byte[] dataByte = udpClient.Receive(ref anyIP);
                 string message = Encoding.UTF8.GetString(dataByte);
 
-                Debug.LogWarning("🌐 NETWORK CLEAR! Unity received JSON string: " + message);
+                Debug.LogWarning("???? NETWORK CLEAR! Unity received JSON string: " + message);
 
                 lock (queueLock)
                 {
@@ -118,11 +116,11 @@ public class MapObjectSpawner : MonoBehaviour
 
             if (scanData == null || scanData.zones == null)
             {
-                Debug.LogError("❌ JSON decoding failed or data is empty!");
+                Debug.LogError("??? JSON decoding failed or data is empty!");
                 return;
             }
 
-            Debug.Log($"📊 Starting map synchronization. Number of zones received from Python: {scanData.zones.Length}");
+            Debug.Log($"???? Starting map synchronization. Number of zones received from Python: {scanData.zones.Length}");
 
             // Loop through all 11 zones for updating
             for (int i = 0; i < scanData.zones.Length; i++)
@@ -176,11 +174,11 @@ public class MapObjectSpawner : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogError($"❌ ERROR: QR string '{qrContent}' in Zone {i + 1} has no configured Prefab in the Inspector!");
+                    Debug.LogError($"??? ERROR: QR string '{qrContent}' in Zone {i + 1} has no configured Prefab in the Inspector!");
                 }
             }
 
-            Debug.Log("🎯 FULL MAP UPDATE COMPLETED!");
+            Debug.Log("???? FULL MAP UPDATE COMPLETED!");
         }
         catch (Exception e)
         {
