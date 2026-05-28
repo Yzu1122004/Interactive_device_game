@@ -16,6 +16,7 @@ TagManager:
   - slope
   - break
   - Iron
+  - Car
   layers:
   - Default
   - TransparentFX
