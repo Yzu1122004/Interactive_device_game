@@ -1,48 +1,58 @@
-﻿using System.IO.Ports;
+using System.Globalization;
+using System.IO.Ports;
 using System.Threading;
 using UnityEngine;
 
 public class ArduinoBasic : MonoBehaviour
 {
     private SerialPort arduinoStream;
-    public string port = "COM4";
+    public string port = "COM5";
     private Thread readThread;
 
     private readonly object lockObj = new object();
     private string latestMessage = "";
     private bool isNewMessage = false;
+    private float attackPressedUntil = 0f;
 
-    private float lastCountL = 0f;
-    private float lastCountR = 0f;
+    private float lastLeftCount = 0f;
+    private float lastRightCount = 0f;
     private bool isInitialized = false;
 
-    [Header("目標物件")]
+    [Header("Target")]
     public GameObject wheelchairObject;
 
-    [Header("移動設定")]
+    [Header("Debug")]
+    public bool logArduinoMessages = true;
+
+    [Header("Movement")]
     public float moveSpeed = 0.01f;
     public float rotateSpeed = 0.5f;
     public float deadZone = 1.0f;
+    public float oneWheelMoveRatio = 0.35f;
+    public float oneWheelTurnRatio = 0.65f;
+    public bool invertLeftEncoder = false;
+    public bool invertRightEncoder = false;
+    public float inputHoldTime = 0.12f;
 
-    [Header("平滑設定")]
+    [Header("Smoothing")]
     [Range(0f, 1f)]
     public float lerpFactor = 0.1f;
 
-    private Vector3 targetPosition;
-    private float targetAngleY;
-    private Vector3 currentPosition;
-    private float currentAngleY;
+    private float inputActiveUntil = 0f;
+
+    public float VerticalInput { get; private set; }
+    public float HorizontalInput { get; private set; }
+
+    public bool IsAttackPressed
+    {
+        get { return Time.time <= attackPressedUntil; }
+    }
 
     void Start()
     {
-        if (wheelchairObject == null) wheelchairObject = GameObject.Find("WhellChair");
-
-        if (wheelchairObject != null)
+        if (wheelchairObject == null)
         {
-            currentPosition = wheelchairObject.transform.localPosition;
-            currentAngleY = wheelchairObject.transform.localEulerAngles.y;
-            targetPosition = currentPosition;
-            targetAngleY = currentAngleY;
+            wheelchairObject = GameObject.Find("WhellChair");
         }
 
         if (!string.IsNullOrEmpty(port))
@@ -52,12 +62,17 @@ public class ArduinoBasic : MonoBehaviour
                 arduinoStream = new SerialPort(port, 9600);
                 arduinoStream.ReadTimeout = 10;
                 arduinoStream.Open();
-                readThread = new Thread(new ThreadStart(ArduinoRead));
+
+                readThread = new Thread(ArduinoRead);
                 readThread.IsBackground = true;
                 readThread.Start();
-                Debug.Log("Arduino 連線成功！");
+
+                Debug.Log("Arduino connected: " + port);
             }
-            catch (System.Exception e) { Debug.LogError("連線失敗: " + e.Message); }
+            catch (System.Exception e)
+            {
+                Debug.LogError("Arduino connection failed: " + e.Message);
+            }
         }
     }
 
@@ -78,56 +93,116 @@ public class ArduinoBasic : MonoBehaviour
 
         if (hasNewMsg)
         {
-            string[] parts = messageToProcess.Split(',');
-            if (parts.Length == 2 && float.TryParse(parts[0], out float countL) && float.TryParse(parts[1], out float countR))
+            ProcessArduinoMessage(messageToProcess);
+        }
+
+        if (Time.time > inputActiveUntil)
+        {
+            VerticalInput = 0f;
+            HorizontalInput = 0f;
+        }
+    }
+
+    private void ProcessArduinoMessage(string message)
+    {
+        if (logArduinoMessages)
+        {
+            Debug.Log("Arduino received: " + message);
+        }
+
+        if (message == "ATTACK_ON")
+        {
+            attackPressedUntil = Time.time + 0.15f;
+            return;
+        }
+
+        if (!message.StartsWith("MOVE:"))
+        {
+            return;
+        }
+
+        string moveData = message.Substring(5);
+        string[] parts = moveData.Split(',');
+
+        if (parts.Length != 2)
+        {
+            return;
+        }
+
+        bool parsedLeft = float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float leftCount);
+        bool parsedRight = float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float rightCount);
+
+        if (!parsedLeft || !parsedRight)
+        {
+            return;
+        }
+
+        if (!isInitialized)
+        {
+            lastLeftCount = leftCount;
+            lastRightCount = rightCount;
+            isInitialized = true;
+            return;
+        }
+
+        float deltaLeft = leftCount - lastLeftCount;
+        float deltaRight = rightCount - lastRightCount;
+
+        lastLeftCount = leftCount;
+        lastRightCount = rightCount;
+
+        if (invertLeftEncoder) deltaLeft *= -1f;
+        if (invertRightEncoder) deltaRight *= -1f;
+
+        if (Mathf.Abs(deltaLeft) > 50 || Mathf.Abs(deltaRight) > 50)
+        {
+            return;
+        }
+
+        ApplyEncoderMovement(deltaLeft, deltaRight);
+    }
+
+    private void ApplyEncoderMovement(float deltaLeft, float deltaRight)
+    {
+        bool leftMoved = Mathf.Abs(deltaLeft) >= deadZone;
+        bool rightMoved = Mathf.Abs(deltaRight) >= deadZone;
+
+        if (!leftMoved && !rightMoved)
+        {
+            return;
+        }
+
+        float forwardInput = 0f;
+        float turnInput = 0f;
+
+        if (leftMoved && rightMoved)
+        {
+            bool sameDirection = Mathf.Sign(deltaLeft) == Mathf.Sign(deltaRight);
+
+            if (sameDirection)
             {
-                if (!isInitialized)
-                {
-                    lastCountL = countL; lastCountR = countR;
-                    isInitialized = true; return;
-                }
-
-                // 1. 計算這一次的變化量
-                float deltaL = countL - lastCountL;
-                float deltaR = countR - lastCountR;
-
-                // 2. 【核心保護機制】如果跳動太誇張（超過 50），代表是數據錯誤，直接略過
-                if (Mathf.Abs(deltaL) > 50 || Mathf.Abs(deltaR) > 50)
-                {
-                    lastCountL = countL;
-                    lastCountR = countR;
-                    return;
-                }
-
-                // 3. 只有超過死區才處理
-                if (Mathf.Abs(deltaL) >= deadZone || Mathf.Abs(deltaR) >= deadZone)
-                {
-                    float forwardDelta = (deltaL + deltaR) * 0.5f;
-                    float rotateDelta = (deltaR - deltaL);
-
-                    // 更新目標角度與位置
-                    targetAngleY -= rotateDelta * rotateSpeed;
-                    float angleRad = targetAngleY * Mathf.Deg2Rad;
-                    Vector3 forwardDirection = new Vector3(Mathf.Sin(angleRad), 0, Mathf.Cos(angleRad));
-
-                    targetPosition += forwardDirection * forwardDelta * moveSpeed;
-
-                    // 存下這一次的數值作為下次的參考點
-                    lastCountL = countL;
-                    lastCountR = countR;
-                }
+                forwardInput = (deltaLeft + deltaRight) * 0.5f;
+                turnInput = (deltaRight - deltaLeft) * 0.35f;
+            }
+            else
+            {
+                turnInput = (deltaRight - deltaLeft) * 0.5f;
             }
         }
-
-        // 4. 平滑更新渲染
-        if (wheelchairObject != null)
+        else if (leftMoved)
         {
-            currentAngleY = Mathf.LerpAngle(currentAngleY, targetAngleY, lerpFactor);
-            currentPosition = Vector3.Lerp(currentPosition, targetPosition, lerpFactor);
-
-            wheelchairObject.transform.localPosition = currentPosition;
-            wheelchairObject.transform.localRotation = Quaternion.Euler(0, currentAngleY, 0);
+            forwardInput = deltaLeft * oneWheelMoveRatio;
+            turnInput = -deltaLeft * oneWheelTurnRatio;
         }
+        else if (rightMoved)
+        {
+            forwardInput = deltaRight * oneWheelMoveRatio;
+            turnInput = deltaRight * oneWheelTurnRatio;
+        }
+
+        VerticalInput = Mathf.Clamp(forwardInput, -1f, 1f);
+        HorizontalInput = Mathf.Clamp(turnInput, -1f, 1f);
+        inputActiveUntil = Time.time + inputHoldTime;
     }
 
     private void ArduinoRead()
@@ -137,21 +212,35 @@ public class ArduinoBasic : MonoBehaviour
             try
             {
                 string line = arduinoStream.ReadLine();
+
                 if (!string.IsNullOrEmpty(line))
                 {
-                    lock (lockObj) { latestMessage = line.Trim(); isNewMessage = true; }
+                    lock (lockObj)
+                    {
+                        latestMessage = line.Trim();
+                        isNewMessage = true;
+                    }
                 }
             }
-            catch { }
+            catch
+            {
+            }
         }
     }
 
     void OnApplicationQuit()
     {
-        if (readThread != null) readThread.Abort();
-        if (arduinoStream != null && arduinoStream.IsOpen) arduinoStream.Close();
+        if (readThread != null)
+        {
+            readThread.Abort();
+        }
+
+        if (arduinoStream != null && arduinoStream.IsOpen)
+        {
+            arduinoStream.Close();
+        }
     }
-    // 補回這個函式，讓 WheelController 不會報錯
+
     public void ArduinoWrite(string message)
     {
         try
@@ -163,7 +252,7 @@ public class ArduinoBasic : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning("寫入錯誤：" + e.Message);
+            Debug.LogWarning("Arduino write failed: " + e.Message);
         }
     }
 }

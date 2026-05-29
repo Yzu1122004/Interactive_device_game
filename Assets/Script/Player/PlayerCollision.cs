@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -54,6 +54,9 @@ public class PlayerCollision : MonoBehaviour
     [Tooltip("拖入負責播放雷射持續嗡嗡聲的 Audio Source（記得勾選 Loop）")]
     public AudioSource laserAudioSource;
 
+    [Header("Arduino 控制")]
+    public ArduinoBasic arduino;
+
     private Rigidbody rb;
     private bool isInvincible = false;
     private MeshRenderer[] renderers;
@@ -64,6 +67,7 @@ public class PlayerCollision : MonoBehaviour
         renderers = GetComponentsInChildren<MeshRenderer>();
 
         if (laserOrigin == null) laserOrigin = transform;
+        if (arduino == null) arduino = FindObjectOfType<ArduinoBasic>();
 
         ForceDisableLaser();
     }
@@ -83,7 +87,16 @@ public class PlayerCollision : MonoBehaviour
 
     private void HandleSkillInput()
     {
-        if (Input.GetKey(KeyCode.Q) && GameManager.Instance.playerEnergy > 0)
+        bool keyboardSkillInput = Input.GetKey(KeyCode.Q);
+        bool arduinoSkillInput = arduino != null && arduino.IsAttackPressed;
+        bool wantsToUseSkill = (keyboardSkillInput || arduinoSkillInput) && GameManager.Instance.playerEnergy > 0;
+
+        if (arduinoSkillInput && !isSkillActive)
+        {
+            Debug.Log("Arduino 攻擊按鈕觸發技能");
+        }
+
+        if (wantsToUseSkill)
         {
             if (!isSkillActive) StartSkill();
         }
