@@ -6,36 +6,36 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    [Header("ª±®aª¬ºA")]
+    [Header("ç©å®¶ç‹€æ…‹")]
     public float maxHealth = 100f;
     public float playerHealth = 100f;
     public float maxEnergy = 100f;
     public float playerEnergy = 100f;
     public bool isGameOver = false;
 
-    [Header("­Ë¼Æ­p®É³]©w")]
+    [Header("å€’æ•¸è¨ˆæ™‚è¨­å®š")]
     public float timeRemaining = 120f;
     public bool isTimerRunning = false;
 
-    [Header("UI ¤¸¥ó (¤w²¾°£¦Ê¤À¤ñ¤å¦r)")]
+    [Header("UI å…ƒä»¶ (å·²ç§»é™¤ç™¾åˆ†æ¯”æ–‡å­—)")]
     public Image healthBarFill;
-    public Image energyBarFill; // ©ì¤J¯à¶q±øªº Image (Filled ¼Ò¦¡)
+    public Image energyBarFill; // æ‹–å…¥èƒ½é‡æ¢çš„ Image (Filled æ¨¡å¼)
     public Text timerText;
 
-    [Header("µ²ºâ UI")]
+    [Header("çµç®— UI")]
     public GameObject resultUI;
 
-    [Header("--- ·s¼W¡Gµ²ºâµû¯Å¹Ï¤ù³]©w ---")]
-    [Tooltip("¥]§t¤T±iµû¯Å¹Ï¤ùªº¤÷ª«¥ó Panel")]
+    [Header("--- æ–°å¢ï¼šçµç®—è©•ç´šåœ–ç‰‡è¨­å®š ---")]
+    [Tooltip("åŒ…å«ä¸‰å¼µè©•ç´šåœ–ç‰‡çš„çˆ¶ç‰©ä»¶ Panel")]
     public GameObject ratingPanel;
 
-    [Tooltip("¡iÀu¨q/º¡¦å¡j¹ïÀ³ªº¹Ï¤ùª«¥ó¡]¨Ò¦p¡G¦å¶q >= 70%¡^")]
+    [Tooltip("ã€å„ªç§€/æ»¿è¡€ã€‘å°æ‡‰çš„åœ–ç‰‡ç‰©ä»¶ï¼ˆä¾‹å¦‚ï¼šè¡€é‡ >= 70%ï¼‰")]
     public GameObject excellentImage;
 
-    [Tooltip("¡i´¶³q/¤¤µ¥¡j¹ïÀ³ªº¹Ï¤ùª«¥ó¡]¨Ò¦p¡G30% <= ¦å¶q < 70%¡^")]
+    [Tooltip("ã€æ™®é€š/ä¸­ç­‰ã€‘å°æ‡‰çš„åœ–ç‰‡ç‰©ä»¶ï¼ˆä¾‹å¦‚ï¼š30% <= è¡€é‡ < 70%ï¼‰")]
     public GameObject goodImage;
 
-    [Tooltip("¡iºG¯P/´İ¦å¡j¹ïÀ³ªº¹Ï¤ùª«¥ó¡]¨Ò¦p¡G¦å¶q < 30%¡^")]
+    [Tooltip("ã€æ…˜çƒˆ/æ®˜è¡€ã€‘å°æ‡‰çš„åœ–ç‰‡ç‰©ä»¶ï¼ˆä¾‹å¦‚ï¼šè¡€é‡ < 30%ï¼‰")]
     public GameObject badImage;
 
     void Awake()
@@ -48,14 +48,15 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         isTimerRunning = true;
+        ResetArduinoForNewRound();
 
-        // ªì©lÁôÂÃ©Ò¦³µ²ºâ¬ÛÃö UI
+        // åˆå§‹éš±è—æ‰€æœ‰çµç®—ç›¸é—œ UI
         if (resultUI != null) resultUI.SetActive(false);
         if (ratingPanel != null) ratingPanel.SetActive(false);
         HideAllRatingImages();
 
         UpdateHealthUI();
-        UpdateEnergyUI(); // ªì©l¤Æ¯à¶q UI
+        UpdateEnergyUI(); // åˆå§‹åŒ–èƒ½é‡ UI
     }
 
     void Update()
@@ -108,7 +109,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // ¥¢±Ñµ²ºâ¡]®É¶¡¨ì ©Î ¦å¶qÂk¹s¡^
+    // å¤±æ•—çµç®—ï¼ˆæ™‚é–“åˆ° æˆ– è¡€é‡æ­¸é›¶ï¼‰
     void GameOver()
     {
         isGameOver = true;
@@ -117,15 +118,15 @@ public class GameManager : MonoBehaviour
 
         if (resultUI != null) resultUI.SetActive(true);
 
-        // ¡i®Ö¤ß­×§ï¡j¥¢±Ñ®É¤]­n¥´¶} ratingPanel ¨Ã«G°_ badImage
+        // ã€æ ¸å¿ƒä¿®æ”¹ã€‘å¤±æ•—æ™‚ä¹Ÿè¦æ‰“é–‹ ratingPanel ä¸¦äº®èµ· badImage
         if (ratingPanel != null) ratingPanel.SetActive(true);
         HideAllRatingImages();
         if (badImage != null) badImage.SetActive(true);
 
-        Debug.Log("Game Over: ½ü´È·lÃa©Î®É¶¡µ²§ô -> Åã¥Ü badImage");
+        Debug.Log("Game Over: è¼ªæ¤…æå£æˆ–æ™‚é–“çµæŸ -> é¡¯ç¤º badImage");
     }
 
-    // ¦¨¥\©è¹F²×ÂIµ²ºâ
+    // æˆåŠŸæŠµé”çµ‚é»çµç®—
     public void CompleteLevel()
     {
         if (isGameOver) return;
@@ -137,34 +138,34 @@ public class GameManager : MonoBehaviour
 
         if (ratingPanel != null) ratingPanel.SetActive(true);
 
-        // ¨Ì¾Ú³Ñ¾l¦å¶q¤ñ¨Ò¨M©wÅã¥Ü­ş±i¹Ï¤ù
+        // ä¾æ“šå‰©é¤˜è¡€é‡æ¯”ä¾‹æ±ºå®šé¡¯ç¤ºå“ªå¼µåœ–ç‰‡
         float healthPercentage = playerHealth / maxHealth;
         ShowRatingImageByHealth(healthPercentage);
     }
 
-    // ¨Ì¾Ú¦å¶q¦Ê¤À¤ñ«G°_¹ïÀ³¹Ï¤ù
+    // ä¾æ“šè¡€é‡ç™¾åˆ†æ¯”äº®èµ·å°æ‡‰åœ–ç‰‡
     private void ShowRatingImageByHealth(float healthPercent)
     {
-        HideAllRatingImages(); // ¥ı¥ş³¡Ãö³¬¨¾§b
+        HideAllRatingImages(); // å…ˆå…¨éƒ¨é—œé–‰é˜²å‘†
 
-        if (healthPercent >= 0.7f) // ¦å¶q 70% ¥H¤W (°ª¦å¶q/º¡¦å¹LÃö)
+        if (healthPercent >= 0.7f) // è¡€é‡ 70% ä»¥ä¸Š (é«˜è¡€é‡/æ»¿è¡€éé—œ)
         {
             if (excellentImage != null) excellentImage.SetActive(true);
-            Debug.Log("³qÃöµû¯Å¡GÀu¨q (Excellent)");
+            Debug.Log("é€šé—œè©•ç´šï¼šå„ªç§€ (Excellent)");
         }
-        else if (healthPercent >= 0.3f) // ¦å¶q 30% ~ 69% ¤§¶¡ (¤¤µ¥¦å¶q¹LÃö)
+        else if (healthPercent >= 0.3f) // è¡€é‡ 30% ~ 69% ä¹‹é–“ (ä¸­ç­‰è¡€é‡éé—œ)
         {
             if (goodImage != null) goodImage.SetActive(true);
-            Debug.Log("³qÃöµû¯Å¡G´¶³q (Good)");
+            Debug.Log("é€šé—œè©•ç´šï¼šæ™®é€š (Good)");
         }
-        else // ¦å¶q¤p©ó 30% (´İ¦å¹LÃö)
+        else // è¡€é‡å°æ–¼ 30% (æ®˜è¡€éé—œ)
         {
             if (badImage != null) badImage.SetActive(true);
-            Debug.Log("³qÃöµû¯Å¡GºG¯P (Bad)");
+            Debug.Log("é€šé—œè©•ç´šï¼šæ…˜çƒˆ (Bad)");
         }
     }
 
-    // ­«¸m©Ò¦³¹Ï¤ùª¬ºA
+    // é‡ç½®æ‰€æœ‰åœ–ç‰‡ç‹€æ…‹
     private void HideAllRatingImages()
     {
         if (excellentImage != null) excellentImage.SetActive(false);
@@ -174,6 +175,16 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
+        ResetArduinoForNewRound();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    private void ResetArduinoForNewRound()
+    {
+        ArduinoBasic arduino = FindObjectOfType<ArduinoBasic>();
+        if (arduino != null)
+        {
+            arduino.ResetArduinoState();
+        }
     }
 }

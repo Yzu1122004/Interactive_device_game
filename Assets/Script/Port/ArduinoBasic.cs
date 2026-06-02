@@ -1,7 +1,12 @@
 using System.Globalization;
 using System.IO.Ports;
+using System.IO;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using UnityEngine;
+using Process = System.Diagnostics.Process;
+using ProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 
 public class ArduinoBasic : MonoBehaviour
 {
@@ -13,6 +18,12 @@ public class ArduinoBasic : MonoBehaviour
     private string latestMessage = "";
     private bool isNewMessage = false;
     private float attackPressedUntil = 0f;
+    private bool confirmPressed = false;
+    private float confirmPressedUntil = 0f;
+    private bool randomSpawnPressed = false;
+    private float randomSpawnPressedUntil = 0f;
+    private Process scanProcess;
+    private float nextAllowedScanTime = 0f;
 
     private float lastLeftCount = 0f;
     private float lastRightCount = 0f;
@@ -34,6 +45,13 @@ public class ArduinoBasic : MonoBehaviour
     public bool invertRightEncoder = false;
     public float inputHoldTime = 0.12f;
 
+    [Header("QR Scan")]
+    public bool launchScannerOnConfirm = false;
+    public string pythonExecutable = "python";
+    public string scanScriptRelativePath = "python/Scan.py";
+    public float scanLaunchCooldown = 1f;
+    public int scannerTriggerUdpPort = 5006;
+
     [Header("Smoothing")]
     [Range(0f, 1f)]
     public float lerpFactor = 0.1f;
@@ -46,6 +64,38 @@ public class ArduinoBasic : MonoBehaviour
     public bool IsAttackPressed
     {
         get { return Time.time <= attackPressedUntil; }
+    }
+
+    public bool IsConfirmPressed
+    {
+        get { return Time.time <= confirmPressedUntil; }
+    }
+
+    public bool IsRandomSpawnPressed
+    {
+        get { return Time.time <= randomSpawnPressedUntil; }
+    }
+
+    public bool ConsumeConfirmPressed()
+    {
+        if (!confirmPressed)
+        {
+            return false;
+        }
+
+        confirmPressed = false;
+        return true;
+    }
+
+    public bool ConsumeRandomSpawnPressed()
+    {
+        if (!randomSpawnPressed)
+        {
+            return false;
+        }
+
+        randomSpawnPressed = false;
+        return true;
     }
 
     void Start()
@@ -68,6 +118,7 @@ public class ArduinoBasic : MonoBehaviour
                 readThread.Start();
 
                 Debug.Log("Arduino connected: " + port);
+                Invoke(nameof(ResetArduinoState), 1f);
             }
             catch (System.Exception e)
             {
@@ -113,6 +164,28 @@ public class ArduinoBasic : MonoBehaviour
         if (message == "ATTACK_ON")
         {
             attackPressedUntil = Time.time + 0.15f;
+            return;
+        }
+
+        if (message == "SPAWN_RANDOM")
+        {
+            randomSpawnPressed = true;
+            randomSpawnPressedUntil = Time.time + 0.15f;
+            return;
+        }
+
+        if (message == "CONFIRM_PLACEMENT")
+        {
+            confirmPressed = true;
+            confirmPressedUntil = Time.time + 0.15f;
+
+            if (launchScannerOnConfirm)
+            {
+                LaunchQrScanner();
+            }
+
+            SendScannerConfirmTrigger();
+
             return;
         }
 
@@ -205,6 +278,79 @@ public class ArduinoBasic : MonoBehaviour
         inputActiveUntil = Time.time + inputHoldTime;
     }
 
+    private void LaunchQrScanner()
+    {
+        if (Time.time < nextAllowedScanTime)
+        {
+            return;
+        }
+
+        if (scanProcess != null && !scanProcess.HasExited)
+        {
+            Debug.Log("QR scanner is already running.");
+            return;
+        }
+
+        string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+        string scriptPath = Path.Combine(projectRoot, scanScriptRelativePath);
+
+        if (!File.Exists(scriptPath))
+        {
+            Debug.LogError("QR scan script not found: " + scriptPath);
+            return;
+        }
+
+        string executable = string.IsNullOrWhiteSpace(pythonExecutable) ? "python" : pythonExecutable;
+
+        if (executable == "python")
+        {
+            string localPython = Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                "Programs", "Python", "Python313", "python.exe");
+
+            if (File.Exists(localPython))
+            {
+                executable = localPython;
+            }
+        }
+
+        ProcessStartInfo startInfo = new ProcessStartInfo
+        {
+            FileName = executable,
+            Arguments = "\"" + scriptPath + "\"",
+            WorkingDirectory = Path.GetDirectoryName(scriptPath),
+            UseShellExecute = false,
+            CreateNoWindow = false
+        };
+
+        try
+        {
+            scanProcess = Process.Start(startInfo);
+            nextAllowedScanTime = Time.time + scanLaunchCooldown;
+            Debug.Log("QR scanner started by confirm button: " + scriptPath);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("Failed to start QR scanner: " + e.Message);
+        }
+    }
+
+    private void SendScannerConfirmTrigger()
+    {
+        try
+        {
+            using (UdpClient client = new UdpClient())
+            {
+                byte[] data = Encoding.UTF8.GetBytes("CONFIRM_PLACEMENT");
+                client.Send(data, data.Length, "127.0.0.1", scannerTriggerUdpPort);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("Failed to send scanner trigger: " + e.Message);
+        }
+    }
+
     private void ArduinoRead()
     {
         while (arduinoStream != null && arduinoStream.IsOpen)
@@ -247,12 +393,29 @@ public class ArduinoBasic : MonoBehaviour
         {
             if (arduinoStream != null && arduinoStream.IsOpen)
             {
-                arduinoStream.Write(message);
+                arduinoStream.WriteLine(message);
             }
         }
         catch (System.Exception e)
         {
             Debug.LogWarning("Arduino write failed: " + e.Message);
         }
+    }
+
+    public void ResetArduinoState()
+    {
+        attackPressedUntil = 0f;
+        confirmPressed = false;
+        confirmPressedUntil = 0f;
+        randomSpawnPressed = false;
+        randomSpawnPressedUntil = 0f;
+        VerticalInput = 0f;
+        HorizontalInput = 0f;
+        inputActiveUntil = 0f;
+        isInitialized = false;
+        lastLeftCount = 0f;
+        lastRightCount = 0f;
+
+        ArduinoWrite("GAME_RESET");
     }
 }

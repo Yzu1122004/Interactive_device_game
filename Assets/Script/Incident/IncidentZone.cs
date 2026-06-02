@@ -1,65 +1,106 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class IncidentZone : MonoBehaviour
 {
     public enum IncidentType
     {
-        PedestrianBlocker, // 1. ¾×¸ôªº¦æ¤H
-        BrakingCarHorn,    // 2. °±º¢¨®¤l«ö³â¥z
-        ExhaustCar,        // 3. ¼o®ğ±Æ©ñ¨®
-        FallingFlowerPot   // 4. ­Ë¤Uªºªá¬Ö
+        PedestrianBlocker,
+        BrakingCarHorn,
+        ExhaustCar,
+        FallingFlowerPot
     }
 
-    [Header("¨Æ¥ó³]©w")]
-    [Tooltip("³o­Ó°Ï°ì©T©w°õ¦æªº¨Æ¥óÃş«¬")]
+    [Header("äº‹ä»¶è¨­å®š")]
+    [Tooltip("é€™å€‹å€åŸŸå›ºå®šåŸ·è¡Œçš„äº‹ä»¶é¡å‹")]
     public IncidentType assignedIncident;
 
-    [Header("1. ¾×¸ô¦æ¤H³]©w")]
+    [Header("1. æ“‹è·¯è¡Œäººè¨­å®š")]
     public GameObject blockerPedestrianPrefab;
     public Transform pedestrianSpawnPoint;
 
-    [Header("2. °±º¢³â¥z¨®³]©w")]
+    [Header("2. åœæ»¯å–‡å­è»Šè¨­å®š")]
     public GameObject hornCarPrefab;
     public Transform carSpawnPoint;
 
-    [Header("3. ¼o®ğ¨®³]©w")]
+    [Header("3. å»¢æ°£è»Šè¨­å®š")]
     public GameObject exhaustCarPrefab;
     public Transform exhaustCarSpawnPoint;
 
-    [Header("4. ­Ë¤Uªá¬Ö³]©w")]
-    [Tooltip("¡i¼Ò¦¡ A¡j¦pªG¾ã²Õªá¬Ö¬O­ì¥»´NÂ\¦b³õ´º¤Wªº¡A½Ğ§â¥¦ªº³Ì¥~¼h¤÷ª«¥ó©ì¨ì³o¸Ì")]
+    [Header("4. å€’ä¸‹èŠ±ç›†è¨­å®š")]
+    [Tooltip("æ¨¡å¼ Aï¼šå¦‚æœæ•´çµ„èŠ±ç›†æ˜¯åŸæœ¬å°±æ“ºåœ¨å ´æ™¯ä¸Šçš„ï¼Œè«‹æŠŠå®ƒçš„æœ€å¤–å±¤çˆ¶ç‰©ä»¶æ‹–åˆ°é€™è£¡")]
     public Rigidbody targetFlowerPotGroup;
 
-    [Tooltip("¡i¼Ò¦¡ B¡j¦pªG§A§Æ±æ½ò¨ì®æ¤l¤~§â¡y¦hªá¬Ö¹w»sª«¡z¥Í¦¨¥X¨Ó­Ë¤U¡A½Ğ§â Prefab ©ì¨ì³o¸Ì")]
+    [Tooltip("æ¨¡å¼ Bï¼šå¦‚æœä½ å¸Œæœ›è¸©åˆ°æ ¼å­æ‰æŠŠå¤šèŠ±ç›†é è£½ç‰©ç”Ÿæˆå‡ºä¾†å€’ä¸‹ï¼Œè«‹æŠŠ Prefab æ‹–åˆ°é€™è£¡")]
     public GameObject flowerPotGroupPrefab;
-    [Tooltip("°t¦X¼Ò¦¡ B ªº¥Í¦¨¦ì¸m¡]¯dªÅ«h¹w³]¦bÄ²µo°Ï¤¤¤ß¡^")]
+    [Tooltip("é…åˆæ¨¡å¼ B çš„ç”Ÿæˆä½ç½®ï¼Œç•™ç©ºå‰‡é è¨­åœ¨è§¸ç™¼å€ä¸­å¿ƒ")]
     public Transform flowerPotSpawnPoint;
 
-    [Tooltip("Åıªá¬Ö­Ë¤Uªº±À¤O¤j¤p")]
+    [Tooltip("è®“èŠ±ç›†å€’ä¸‹çš„æ¨åŠ›å¤§å°")]
     public float pushForce = 8f;
 
     private bool isActivatedByManager = false;
     private bool hasTriggered = false;
+    private bool playerInside = false;
+    private ArduinoBasic arduino;
+
+    private void Start()
+    {
+        arduino = FindObjectOfType<ArduinoBasic>();
+    }
 
     public void SetActivate(bool state)
     {
         isActivatedByManager = state;
         hasTriggered = false;
+        playerInside = false;
         GetComponent<Collider>().enabled = true;
+    }
+
+    private void Update()
+    {
+        if (isActivatedByManager && playerInside && !hasTriggered && arduino != null && arduino.ConsumeRandomSpawnPressed())
+        {
+            hasTriggered = true;
+            arduino.ArduinoWrite("LIGHT_RANDOM_OFF");
+            ExecuteIncident();
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (isActivatedByManager && !hasTriggered && other.CompareTag("Player"))
         {
-            hasTriggered = true;
-            ExecuteIncident();
+            playerInside = true;
+
+            if (arduino != null)
+            {
+                arduino.ArduinoWrite("LIGHT_RANDOM_ON");
+                Debug.Log("ã€Arduinoã€‘ç©å®¶é€²å…¥äº‹ä»¶å€ï¼Œå·²é–‹å•Ÿéš¨æ©Ÿäº‹ä»¶æŒ‰éˆ•ç‡ˆã€‚");
+            }
+            else
+            {
+                Debug.LogWarning("ã€Arduinoã€‘æ‰¾ä¸åˆ° ArduinoBasicï¼Œç„¡æ³•é–‹å•Ÿéš¨æ©Ÿäº‹ä»¶æŒ‰éˆ•ç‡ˆã€‚");
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            playerInside = false;
+
+            if (!hasTriggered && arduino != null)
+            {
+                arduino.ArduinoWrite("LIGHT_RANDOM_OFF");
+                Debug.Log("ã€Arduinoã€‘ç©å®¶é›¢é–‹äº‹ä»¶å€ï¼Œå·²é—œé–‰éš¨æ©Ÿäº‹ä»¶æŒ‰éˆ•ç‡ˆã€‚");
+            }
         }
     }
 
     private void ExecuteIncident()
     {
-        Debug.Log($"¡i¤zÂZ¨Æ¥ó¡jª±®a¶i¤J°Ï°ì¡AÄ²µo¡G{assignedIncident}");
+        Debug.Log($"ã€å¹²æ“¾äº‹ä»¶ã€‘ç©å®¶æŒ‰ä¸‹éš¨æ©Ÿäº‹ä»¶æŒ‰éˆ•ï¼Œè§¸ç™¼ï¼š{assignedIncident}");
 
         switch (assignedIncident)
         {
@@ -84,6 +125,10 @@ public class IncidentZone : MonoBehaviour
         {
             Instantiate(blockerPedestrianPrefab, pedestrianSpawnPoint.position, pedestrianSpawnPoint.rotation);
         }
+        else
+        {
+            Debug.LogWarning("ã€å¹²æ“¾äº‹ä»¶ã€‘æ“‹è·¯è¡Œäººäº‹ä»¶ç¼ºå°‘ Prefab æˆ– SpawnPointã€‚");
+        }
     }
 
     private void TriggerBrakingCarHorn()
@@ -91,6 +136,10 @@ public class IncidentZone : MonoBehaviour
         if (hornCarPrefab != null && carSpawnPoint != null)
         {
             Instantiate(hornCarPrefab, carSpawnPoint.position, carSpawnPoint.rotation);
+        }
+        else
+        {
+            Debug.LogWarning("ã€å¹²æ“¾äº‹ä»¶ã€‘å–‡å­è»Šäº‹ä»¶ç¼ºå°‘ Prefab æˆ– SpawnPointã€‚");
         }
     }
 
@@ -100,14 +149,16 @@ public class IncidentZone : MonoBehaviour
         {
             Instantiate(exhaustCarPrefab, exhaustCarSpawnPoint.position, exhaustCarSpawnPoint.rotation);
         }
+        else
+        {
+            Debug.LogWarning("ã€å¹²æ“¾äº‹ä»¶ã€‘å»¢æ°£è»Šäº‹ä»¶ç¼ºå°‘ Prefab æˆ– SpawnPointã€‚");
+        }
     }
 
-    // --- 4. ­Ë¤Uªá¬Ö¡]¦hªá¬Ö¤@Åé¤Æ³B²z¡^ ---
     private void TriggerFallingFlowerPot()
     {
         Rigidbody potRbToPush = null;
 
-        // Àu¥ıÀË¬d¼Ò¦¡ B¡G°ÊºA¥Í¦¨
         if (flowerPotGroupPrefab != null)
         {
             Vector3 spawnPos = flowerPotSpawnPoint != null ? flowerPotSpawnPoint.position : transform.position;
@@ -118,34 +169,25 @@ public class IncidentZone : MonoBehaviour
 
             if (potRbToPush == null)
             {
-                Debug.LogError($"¡i¿ù»~¡j¥Í¦¨ªºªá¬Ö Prefab ¡y³Ì¥~¼h¤÷ª«¥ó¡z¨­¤W¨S¦³±¾ Rigidbody¡I");
+                Debug.LogError("ã€å¹²æ“¾äº‹ä»¶ã€‘ç”Ÿæˆçš„èŠ±ç›† Prefab æœ€å¤–å±¤çˆ¶ç‰©ä»¶æ²’æœ‰ Rigidbodyã€‚");
                 return;
             }
         }
-        // §_«h¨Ï¥Î¼Ò¦¡ A¡G³õ´º¤W­ì¥»Â\¦nªº²{¦¨ªá¬Ö
         else if (targetFlowerPotGroup != null)
         {
             potRbToPush = targetFlowerPotGroup;
         }
 
-        // ¶}©l°õ¦æ±À­Ëª«²zÅŞ¿è
         if (potRbToPush != null)
         {
-            // 1. ³ê¿ôª«²z¡G¸Ñ°£ Kinematic Åı­«¤O«ì´_¹B§@
             potRbToPush.isKinematic = false;
-
-            // 2. ®Ö¤ß­×¥¿¡G­pºâ±×¤U¤èªºª«²z±À¤O¤è¦V¡]¨Ï¥Î¤j¼g Vector3.down ­×¥¿¥ı«e transform.down ªº³ø¿ù¡^
             Vector3 pushDirection = (transform.right + Vector3.down * 0.3f).normalized;
-
-            // 3. ¤@¤Ú´x±À¦b³Ì¥~¼h¤÷ª«¥óªºª«²z¨­Åé¤W¡A¸Ì­±ªº©Ò¦³¤lªá¬Ö´N·|¸òµÛ§¹¬üªº¤@°_ºu°Ê­Ë¤U¡I
             potRbToPush.AddForce(pushDirection * pushForce, ForceMode.Impulse);
-
-            // ÃB¥~¥[ÂI·L´T§á¯x±ÛÂà¡AÅıªá¬Ö¸s²Õ­Ë±o§ó¦ÛµM¡B¦³ºu°Ê·P
             potRbToPush.AddTorque(transform.forward * pushForce * 0.5f, ForceMode.Impulse);
         }
         else
         {
-            Debug.LogWarning("¡iÄµ§i¡j¥¼¸j©w¥ô¦ó³õ´ºªá¬Öª«¥ó (Target Flower Pot Group) ©Îªá¬Ö Prefab¡I");
+            Debug.LogWarning("ã€å¹²æ“¾äº‹ä»¶ã€‘æœªç¶å®šä»»ä½•å ´æ™¯èŠ±ç›†ç‰©ä»¶æˆ–èŠ±ç›† Prefabã€‚");
         }
     }
 
