@@ -3900,7 +3900,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 321955ca52a37c64790d1fd268739c16, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  port: COM5
+  port: COM4
   wheelchairObject: {fileID: 101114754}
   logArduinoMessages: 1
   moveSpeed: 50
