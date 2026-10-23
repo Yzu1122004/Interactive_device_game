@@ -254,6 +254,10 @@ PrefabInstance:
       propertyPath: m_IsTrigger
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7906249899488302039, guid: 91101515f3cef7b4a90dbc340268a7eb, type: 3}
+      propertyPath: arduino
+      value: 
+      objectReference: {fileID: 523924447}
     - target: {fileID: 8446108102655708677, guid: 91101515f3cef7b4a90dbc340268a7eb, type: 3}
       propertyPath: arduino
       value: 
