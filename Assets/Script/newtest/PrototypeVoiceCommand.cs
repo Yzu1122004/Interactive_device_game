@@ -4,7 +4,7 @@ using System.Text;
 public enum PrototypeVoiceCommand
 {
     None, Forward, Backward, Left, Right, Stop, UTurn,
-    NudgeForward, NudgeBackward, NudgeLeft, NudgeRight
+    NudgeForward, NudgeBackward, NudgeLeft, NudgeRight, CrossThreshold, KeepLeft, KeepRight
 }
 
 // Match complete commands. Negations and multiple commands are not substring matches.
@@ -14,6 +14,13 @@ public static class PrototypeVoiceCommandParser
     {
         command = PrototypeVoiceCommand.None;
         string text = NormalizeText(transcript, true);
+        switch (text)
+        {
+            case "靠左": case "靠左一點": case "靠左一點點": case "靠左一点": case "往左靠一點": case "往左靠一点":
+                command = PrototypeVoiceCommand.KeepLeft; return true;
+            case "靠右": case "靠右一點": case "靠右一點點": case "靠右一点": case "往右靠一點": case "往右靠一点":
+                command = PrototypeVoiceCommand.KeepRight; return true;
+        }
         foreach (string amount in new[] { "一點點", "一点点", "一小段", "一小步", "一點", "一点" })
         {
             if (!text.EndsWith(amount, StringComparison.Ordinal)) continue;
@@ -29,7 +36,10 @@ public static class PrototypeVoiceCommandParser
         }
         switch (text)
         {
-            case "掉頭": case "掉头": case "調頭": case "调头": case "迴轉": case "回轉": case "回转":
+            case "門檻": case "门槛": case "過門檻": case "过门槛": case "跨門檻": case "跨過門檻":
+            case "跨过门槛": case "通過門檻": case "通過前面的門檻": case "跨過前面的門檻":
+                command = PrototypeVoiceCommand.CrossThreshold; break;
+            case "回頭": case "回头": case "掉頭": case "掉头": case "調頭": case "调头": case "迴轉": case "回轉": case "回转":
             case "轉半圈": case "转半圈": case "uturn": command = PrototypeVoiceCommand.UTurn; break;
         }
         if (command != PrototypeVoiceCommand.None) return true;
@@ -68,7 +78,7 @@ public static class PrototypeVoiceCommandParser
         command = PrototypeVoiceCommand.None;
         switch (text)
         {
-            case "前進": case "前进": case "往前": case "向前":
+            case "直走": case "直行": case "前進": case "前进": case "往前": case "向前":
             case "往前走": case "向前走": case "往前移動": case "向前移動":
             case "forward": case "goforward": command = PrototypeVoiceCommand.Forward; break;
             case "後退": case "后退": case "往後": case "往后": case "向後": case "向后":
@@ -95,6 +105,9 @@ public static class PrototypeVoiceCommandParser
             case PrototypeVoiceCommand.Right: return "右轉";
             case PrototypeVoiceCommand.Stop: return "停止";
             case PrototypeVoiceCommand.UTurn: return "掉頭";
+            case PrototypeVoiceCommand.CrossThreshold: return "協助跨門檻";
+            case PrototypeVoiceCommand.KeepLeft: return "靠左一點";
+            case PrototypeVoiceCommand.KeepRight: return "靠右一點";
             case PrototypeVoiceCommand.NudgeForward: return "前進一點";
             case PrototypeVoiceCommand.NudgeBackward: return "後退一點";
             case PrototypeVoiceCommand.NudgeLeft: return "左轉一點";

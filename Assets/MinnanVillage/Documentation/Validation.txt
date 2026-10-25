@@ -1,0 +1,3 @@
+Unity 2022.3.9f1 Built-in. Renderers=1563; colliders=98; axis anchor error=1.477645E-06 m.
+Unity physics route: 490 samples, collisions=, floor gaps=0. 0.80 x 1.20 m chair; 1.10 m truck bypass.
+Procedural materials recreated in Unity, not pixel-identical Blender bakes. Source smoke cards disabled, replaced by lightweight particles. Flame meshes and ember materials retained; gentle flicker/light recreated. Includes optional daylight rig and disabled review cameras. No player controller. Entrance steps remain non-step-free.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -10,6 +10,7 @@ public class PrototypeVoiceControl : MonoBehaviour
     [Header("Target")]
     public PrototypeWheelchairController wheelchair;
     public PrototypeRouteNavigator navigation;
+    [Tooltip("Use free movement commands plus named destination navigation.")]
     public bool useRouteNavigation = true;
     public KeyCode pushToTalkKey = KeyCode.V;
 
@@ -17,7 +18,7 @@ public class PrototypeVoiceControl : MonoBehaviour
     [Tooltip("Leave empty to use the first microphone.")]
     public string microphoneName = "";
     public int sampleRate = 16000;
-    [Range(1, 15)] public int maxRecordingSeconds = 5;
+    [Range(1, 15)] public int maxRecordingSeconds = 10;
     [Min(0.1f)] public float minimumRecordingSeconds = 0.2f;
     [Range(0f, 0.1f)] public float silenceThreshold = 0.002f;
 
@@ -26,6 +27,11 @@ public class PrototypeVoiceControl : MonoBehaviour
     [SerializeField] private string apiKeyOverride = "";
     public string transcriptionModel = "whisper-large-v3";
     [Range(3, 60)] public int requestTimeoutSeconds = 15;
+
+    [Header("Groq Language Understanding")]
+    public bool enableSemanticUnderstanding = true;
+    public string intentModel = PrototypeVoiceIntentInterpreter.DefaultModel;
+    [Range(3, 60)] public int intentTimeoutSeconds = 15;
 
     [Header("Free Movement (Route Navigation Disabled)")]
     [Range(0.1f, 3f)] public float moveDuration = 1f;
@@ -36,12 +42,14 @@ public class PrototypeVoiceControl : MonoBehaviour
     [Header("Runtime Status")]
     [SerializeField] private string status = "按住 V 說話，放開後辨識";
     [SerializeField] private string lastTranscript = "";
+    [SerializeField] private string understoodAction = "";
     public string Status { get { return status; } }
     public string LastTranscript { get { return lastTranscript; } }
     public bool IsRecording { get; private set; }
     public bool IsProcessing { get; private set; }
 
     private const string Endpoint = "https://api.groq.com/openai/v1/audio/transcriptions";
+    private const string IntentEndpoint = "https://api.groq.com/openai/v1/chat/completions";
     private AudioClip recording;
     private string activeMicrophone;
     private float recordingStartedAt;
@@ -52,6 +60,8 @@ public class PrototypeVoiceControl : MonoBehaviour
     private Font overlayFont;
 
     [Serializable] private class TranscriptResponse { public string text = ""; }
+    [Serializable] private class ServiceError { public string code = ""; }
+    [Serializable] private class ServiceErrorResponse { public ServiceError error = null; }
 
     private void Start()
     {
@@ -106,12 +116,13 @@ public class PrototypeVoiceControl : MonoBehaviour
             if (maximum > 0) frequency = Mathf.Clamp(frequency, minimum, maximum);
             recording = Microphone.Start(activeMicrophone, false, Mathf.Clamp(maxRecordingSeconds, 1, 15), frequency);
             if (recording == null) { status = "麥克風無法開始錄音"; return; }
-            wheelchair.CancelVoiceInput();
-            if (navigation != null) navigation.PauseForVoiceInput();
+            // Recording/listening does not own movement. The current command
+            // continues until a new command is accepted or normal movement ends.
             recordingStartedAt = Time.unscaledTime;
             IsRecording = true;
             lastTranscript = "";
-            status = "錄音中…說出指令後放開 V";
+            understoodAction = "";
+            status = "錄音中…維持原動作，說完放開 V；空白鍵立即停止";
         }
         catch (Exception)
         {
@@ -155,6 +166,13 @@ public class PrototypeVoiceControl : MonoBehaviour
 
     private IEnumerator Recognize(byte[] wav)
     {
+        yield return RecognizeAndInterpret(wav);
+        IsProcessing = false;
+        requestRoutine = null;
+    }
+
+    private IEnumerator RecognizeAndInterpret(byte[] wav)
+    {
         status = "辨識中…";
         var form = new WWWForm();
         form.AddBinaryData("file", wav, "command.wav", "audio/wav");
@@ -162,7 +180,7 @@ public class PrototypeVoiceControl : MonoBehaviour
         form.AddField("language", "zh");
         form.AddField("response_format", "json");
         form.AddField("temperature", "0");
-        form.AddField("prompt", "輪椅移動口令：前進、後退、左轉、右轉、前進一點、後退一點、左轉一點、右轉一點、掉頭、停止、去目的地。請保留一點等用詞並如實轉錄，以繁體中文輸出。" +
+        form.AddField("prompt", "輪椅控制情境。請保留完整句子、否定、先後順序與一點等用詞，勿摘要成口令，以繁體中文如實轉錄。可能談到直走、前後微調、回頭、停下、去前面路口後轉向、協助跨過門檻。" +
             (useRouteNavigation && navigation != null ? "目的地：" + navigation.DestinationHint() : ""));
         using (UnityWebRequest request = UnityWebRequest.Post(Endpoint, form))
         {
@@ -171,8 +189,6 @@ public class PrototypeVoiceControl : MonoBehaviour
             request.SetRequestHeader("Authorization", "Bearer " + ResolveApiKey());
             yield return request.SendWebRequest();
             pendingRequest = null;
-            IsProcessing = false;
-            requestRoutine = null;
             if (request.result != UnityWebRequest.Result.Success)
             {
                 if (request.responseCode == 401 || request.responseCode == 403)
@@ -192,7 +208,11 @@ public class PrototypeVoiceControl : MonoBehaviour
             if (useRouteNavigation)
             {
                 if (navigation == null || !navigation.isActiveAndEnabled) status = "路線導航元件尚未啟用或指定";
-                else { navigation.TryHandleTranscript(lastTranscript, out string message); status = message; }
+                else if (navigation.TryHandleTranscript(lastTranscript, out string message))
+                { status = message; understoodAction = message; }
+                else if (enableSemanticUnderstanding && !string.IsNullOrWhiteSpace(lastTranscript))
+                    yield return InterpretTranscript();
+                else status = "未辨識為支援的移動指令，未變更原動作";
                 yield break;
             }
             if (!PrototypeVoiceCommandParser.TryParse(lastTranscript, out PrototypeVoiceCommand command))
@@ -201,8 +221,52 @@ public class PrototypeVoiceControl : MonoBehaviour
         }
     }
 
+    private IEnumerator InterpretTranscript()
+    {
+        status = "正在理解你的意思…";
+        string payload = PrototypeVoiceIntentInterpreter.BuildRequest(intentModel, lastTranscript,
+            navigation.IntentContext, navigation.DestinationHint());
+        using (var request = new UnityWebRequest(IntentEndpoint, "POST"))
+        {
+            request.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(payload));
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            request.SetRequestHeader("Authorization", "Bearer " + ResolveApiKey());
+            request.timeout = Mathf.Clamp(intentTimeoutSeconds, 3, 60);
+            pendingRequest = request;
+            yield return request.SendWebRequest();
+            pendingRequest = null;
+            if (wheelchair == null || !wheelchair.isActiveAndEnabled || !isActiveAndEnabled ||
+                requestRevision != wheelchair.ControlRevision || Input.GetKey(wheelchair.brakeKey))
+            { status = "本次語意指令已取消，請重新錄音"; yield break; }
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                string errorCode = "";
+                try { errorCode = JsonUtility.FromJson<ServiceErrorResponse>(request.downloadHandler.text)?.error?.code ?? ""; }
+                catch (Exception) { }
+                status = errorCode == "model_permission_blocked_project" ? "語意模型被 Groq 專案限制：請在 Projects → Limits 允許 " + intentModel :
+                    errorCode == "model_permission_blocked_org" ? "語意模型被 Groq 組織限制，請由組織管理員啟用 " + intentModel :
+                    request.responseCode == 401 || request.responseCode == 403 ? "語意服務拒絕存取，請確認 Groq Key 與 LLM 模型權限" :
+                    request.responseCode == 429 ? "語意服務額度或頻率受限，未變更原動作，請稍後重試" :
+                    "語意服務失敗或逾時，未變更原動作（HTTP " + request.responseCode + "）";
+                yield break;
+            }
+            if (!PrototypeVoiceIntentInterpreter.TryReadCompletion(request.downloadHandler.text, out var intent, out string message))
+            { status = message; understoodAction = "尚未執行，需要說明"; yield break; }
+            PrototypeVoiceIntentInterpreter.Apply(intent, navigation, out message);
+            status = message;
+            understoodAction = message;
+        }
+    }
+
     private void ApplyCommand(PrototypeVoiceCommand command)
     {
+        if (command == PrototypeVoiceCommand.CrossThreshold || command == PrototypeVoiceCommand.KeepLeft || command == PrototypeVoiceCommand.KeepRight)
+        {
+            if (navigation == null) status = "尚未指定輪椅的門檻協助元件";
+            else { navigation.Execute(command); status = navigation.Status; }
+            return;
+        }
         if (PrototypeVoiceCommandParser.IsNudge(command))
         {
             if (navigation == null || !navigation.isActiveAndEnabled) status = "微調需要啟用輪椅的 Prototype Route Navigator";
@@ -277,13 +341,16 @@ public class PrototypeVoiceControl : MonoBehaviour
             overlayStyle.normal.textColor = Color.white;
         }
         float width = Mathf.Min(620f, Screen.width - 24f);
-        GUI.Box(new Rect(12, 12, width, 205), GUIContent.none);
-        GUI.Label(new Rect(24, 20, width - 24, 195),
+        string overlayText =
             "按住 V 說話，放開辨識｜空白鍵停止自動、切換手動\n" + status +
             "\n辨識文字：" + (string.IsNullOrEmpty(lastTranscript) ? "—" : lastTranscript) +
-            "\n指令：前進／後退／左轉／右轉／掉頭／停止" +
-            "\n微調：前進一點／後退一點／左轉一點／右轉一點" +
-            (useRouteNavigation && navigation != null ? "\n路線：" + navigation.Status +
-                "\n目的地：" + navigation.DestinationHint() : ""), overlayStyle);
+            "\n理解動作：" + (string.IsNullOrEmpty(understoodAction) ? "—" : understoodAction) +
+            "\n自由：直走／前進／後退／左轉／右轉／回頭／停下來" +
+            "\n微調：前進一點／後退一點／左轉一點／右轉一點；避讓：靠左一點／靠右一點" +
+            (useRouteNavigation && navigation != null ? "\n移動：" + navigation.Status +
+                "\n目的地：" + navigation.DestinationHint() : "");
+        float height = overlayStyle.CalcHeight(new GUIContent(overlayText), width - 24f);
+        GUI.Box(new Rect(12, 12, width, height + 20f), GUIContent.none);
+        GUI.Label(new Rect(24, 20, width - 24f, height), overlayText, overlayStyle);
     }
 }

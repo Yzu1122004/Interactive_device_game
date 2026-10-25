@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -46,11 +46,16 @@ public static class PrototypeValidation
             var navigator = components.OfType<PrototypeRouteNavigator>().Single();
             Check(navigator.network == network && navigator.wheelchair == controller &&
                 voice.navigation == navigator && voice.useRouteNavigation, "Route navigation references");
+            var thresholdAssist = components.OfType<PrototypeThresholdCrossing>().Single();
+            Check(navigator.thresholdAssist == thresholdAssist && thresholdAssist.wheelchair == controller &&
+                thresholdAssist.threshold != null && thresholdAssist.threshold.enabled && !thresholdAssist.threshold.isTrigger,
+                "Threshold assistance references and solid collider");
             Check(network.Contains(network.startNode), "Route start node");
             foreach (var node in network.Nodes)
                 Check(network.TryFindPath(network.startNode, node, out var path), "Route reachable: " + node.name);
-            var bank = network.FindDestination("銀行");
-            Check(bank != null && network.TryFindPath(network.startNode, bank, out var bankPath), "Bank destination reachable");
+            Check(network.Nodes.Any(node => node.IsDestination), "At least one named destination");
+            foreach (var goal in network.Nodes.Where(node => node.IsDestination))
+                Check(network.TryFindPath(network.startNode, goal, out var goalPath), "Destination reachable: " + goal.destinationName);
             Debug.Log("PROTOTYPE VALIDATION PASSED: encoder, voice parser, WAV, route network and scene references.");
         }
         finally { if (!alreadyLoaded) EditorSceneManager.CloseScene(scene, true); }
@@ -110,16 +115,22 @@ public static class PrototypeValidation
     private static void ValidateVoice()
     {
         string[] phrases = { "請幫我前進一下，謝謝。", "后退", "往左轉", "右轉。", "停下來",
-            "前進一點", "后退一点", "請幫我左轉一點點，謝謝。", "右轉一點" };
+            "前進一點", "后退一点", "請幫我左轉一點點，謝謝。", "右轉一點", "直走", "回頭" };
         PrototypeVoiceCommand[] expected = { PrototypeVoiceCommand.Forward, PrototypeVoiceCommand.Backward,
             PrototypeVoiceCommand.Left, PrototypeVoiceCommand.Right, PrototypeVoiceCommand.Stop,
             PrototypeVoiceCommand.NudgeForward, PrototypeVoiceCommand.NudgeBackward,
-            PrototypeVoiceCommand.NudgeLeft, PrototypeVoiceCommand.NudgeRight };
+            PrototypeVoiceCommand.NudgeLeft, PrototypeVoiceCommand.NudgeRight, PrototypeVoiceCommand.Forward, PrototypeVoiceCommand.UTurn };
         for (int i = 0; i < phrases.Length; i++)
             Check(PrototypeVoiceCommandParser.TryParse(phrases[i], out var command) && command == expected[i], phrases[i]);
         foreach (string phrase in new[] { "不要前進", "不要停止", "前進後退", "前進十秒", "謝謝觀看",
             "不要前進一點", "前進一點然後右轉", "左轉十度", "", null })
             Check(!PrototypeVoiceCommandParser.TryParse(phrase, out var command), "Reject ambiguous voice input");
+        Check(PrototypeVoiceIntentInterpreter.TryReadIntent("{\"action\":\"turn_at_junction\",\"direction\":\"right\",\"confidence\":0.9}",
+            out var semantic, out var semanticMessage), "Structured junction-turn intent");
+        Check(!PrototypeVoiceIntentInterpreter.TryReadIntent("{\"action\":\"teleport\",\"confidence\":1}",
+            out semantic, out semanticMessage), "Reject unsupported semantic action");
+        Check(!PrototypeVoiceIntentInterpreter.TryReadIntent("{\"action\":\"forward\",\"confidence\":0.2}",
+            out semantic, out semanticMessage), "Reject uncertain semantic action");
         Check(PrototypeVoiceCommandParser.TryParse("掉頭", out var uturn) &&
             uturn == PrototypeVoiceCommand.UTurn, "U-turn command");
         Check(PrototypeRouteGeometry.MatchesTurn(-90f, PrototypeVoiceCommand.Left) &&

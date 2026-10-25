@@ -159,6 +159,14 @@ public class PrototypeWheelchairController : MonoBehaviour
         DriveRouteWheel(wheel_right_col, forwardTorque, yawTorque);
     }
 
+    public void ReleaseRouteWheels()
+    {
+        if (!RouteControlled || !CanDriveRoutePhysics) return;
+        routeForwardTarget = routeYawTarget = 0f;
+        ApplyBrake(0f);
+        wheel_left_col.motorTorque = wheel_right_col.motorTorque = 0f;
+    }
+
     private static float WheelSpeed(WheelCollider wheel)
     { return wheel.rpm * (2f * Mathf.PI * wheel.radius / 60f); }
 

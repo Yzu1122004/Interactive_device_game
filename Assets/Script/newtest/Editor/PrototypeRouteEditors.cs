@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -46,7 +46,7 @@ public class PrototypeRouteNodeEditor : Editor
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
-        EditorGUILayout.HelpBox("Connections 可拖入另一個節點來連線。新增目的地時，在 Destination Name 填名稱，例如「銀行」。\n" +
+        EditorGUILayout.HelpBox("Connections 可拖入另一個節點來連線。新增目的地時，在 Destination Name 填名稱，例如「王阿姨家」。\n" +
             "也可以 Ctrl 選取兩個節點，用下方按鈕連線或解除連線。", MessageType.Info);
         PrototypeRouteEditorTools.DrawConnectionButtons();
         if (targets.Length != 1) return;
